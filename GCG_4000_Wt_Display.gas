@@ -1,0 +1,130 @@
+Program.Sub.ScreenSU.Start
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+'Coded by: WAW
+'Date: 3/6/2015
+'This will be a custom GAB Script that will be used to display the word "Weight" on the script 1 button. When clicked will display a calculated weight	
+'From ORDER ENTRY>TRANSACTIONS>SHIPMENTS>OPEN/NEW
+
+V.Local.ssql.Declare(String)
+V.Local.irowcnt.Declare(Float)
+V.Local.i.Declare(Float)
+V.Local.sreadrow.Declare(String)
+V.Local.icolumn.Declare(Float)
+V.Local.iret.Declare(Float)
+V.Local.iweight.Declare(Float)
+V.Local.itotal.Declare(Float)
+V.Local.ifinal.Declare(Float)
+V.Local.spart.Declare(String)
+V.Local.sID.Declare(String)
+V.Local.iret2.Declare(Float)
+V.Local.slbs.Declare(String)
+V.Local.ifinal2.Declare(Float)
+V.Local.final3.Declare(String)
+
+'open the connection to the database
+F.ODBC.Connection!con.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+'set the passed variable
+V.Local.sID.Set(V.Passed.AUX001)
+V.Local.iret2.Set(0)
+V.Local.ifinal.Set(0)
+
+'set the script 1 button to say "Weight"
+F.Intrinsic.Control.If(V.Caller.Hook,=,"28510")
+	V.Passed.000331.Set("Weight")
+F.Intrinsic.Control.EndIf
+
+'run from the script 1 button
+F.Intrinsic.Control.If(V.Caller.Hook,=,"28550")
+
+'loads the BDF and ID into memory
+F.Intrinsic.BDF.Load("AUX001","AUX001")
+
+'return the number of rows as irowcnt
+F.Intrinsic.BDF.ReadRowCount("AUX001",V.Local.irowcnt)
+'subtract 1 row to count rows starting from 0 instead of 1
+F.Intrinsic.Math.Sub(V.Local.irowcnt,1,V.Local.irowcnt)
+'start looping from 0 and loop through each row 1 at a time
+F.Intrinsic.Control.For(V.Local.i,0,V.Local.irowcnt,1)
+
+	'read the data from AUX001
+	F.Intrinsic.BDF.ReadRow("AUX001",V.Local.i,V.Local.sreadrow)
+	'string delimiter |~| splits row from a string into an array
+	F.Intrinsic.String.Split(V.Local.sreadrow,"|~|",V.Local.sreadrow)
+	F.Intrinsic.Math.ConvertToFloat(V.Local.sreadrow,V.Local.iret)
+	F.Intrinsic.Math.ConvertToFloat(V.Local.iret2,V.Local.iret2)
+
+	'set the iret and spart variables to what is being read in the BDF
+	V.Local.iret.Set(V.Local.sreadrow(2).Trim)
+	V.Local.spart.Set(V.Local.sreadrow(8).Trim)
+	'SQL statement to pull data from database
+	F.Intrinsic.String.Build("select LBS from INVENTORY_MST2 where PART = '{0}'",V.Local.spart,V.Local.ssql)
+	F.ODBC.Connection!con.OpenRecordsetRO("rst",V.Local.ssql)
+	'set the lbs
+	V.Local.slbs.Set(V.ODBC.con!rst.fieldvaltrim!LBS)
+	'multiply the pounds by the shipping quantity
+	F.Intrinsic.Math.Mult(V.Local.slbs,V.Local.iret,V.Local.iret2)
+	'add your multiplied number with ifinal to build a running total
+	F.Intrinsic.Math.Add(V.Local.iret2,V.Local.ifinal,V.Local.ifinal2)
+	V.Local.ifinal.Set(V.Local.ifinal2)
+	'close the connection
+	F.ODBC.con!rst.close
+'move to the next
+F.Intrinsic.Control.Next(V.Local.i)
+
+''if the script 1 button is clicked display the calulated number	
+'F.Intrinsic.Control.If(V.Caller.Hook,=,"28550")
+F.Intrinsic.String.Concat("Total for this Shipment in lbs:"," ",V.Local.ifinal2,V.Local.final3)
+	F.Intrinsic.UI.Msgbox(V.Local.final3,"Weight")
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4000_Weight_Display.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Unload)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Main.End
+
+Program.Sub.Unload.Start
+F.Intrinsic.Control.SetErrorHandler("Unload_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+'close the connection to the database
+F.ODBC.Connection!con.Close
+
+'end the program
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Unload_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4000_Weight_Display.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End
+Function.Intrinsic.Control.EndIf
+
+Program.Sub.Unload.End
+
+Program.Sub.Comments.Start
+${$0$}$$}$WAW$}$3/23/2015 4:03:19 PM
+Program.Sub.Comments.End
+
